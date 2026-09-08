@@ -28,7 +28,4 @@ pip install -r requirements.txt
 - `feature/{name}`, `doc/{name}`, ...: one branch per unit of work, branched off `develop`.
 - `release/{version}` (e.g. `release/0.0.1`): cut from `develop` when preparing a production release; merged into `main` via PR.
 
-## Releases
-
-| Version | PR | Summary |
-| --- | --- | --- |
+See [CHANGELOG.md](./CHANGELOG.md) for release history.
