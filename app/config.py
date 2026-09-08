@@ -8,7 +8,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
     SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080
+    # 180 days — sessions are meant to last months, matching typical app UX.
+    # Single long-lived JWT (no refresh token): simpler, but can't be
+    # revoked server-side before it expires (see decision in README/issue).
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 259200
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
 
     @property
