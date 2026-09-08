@@ -45,6 +45,21 @@ class Trip(Base):
         default=TripStatus.PLANNED,
     )
 
+    # Set when the trip is created (Create trip screen).
+    planned_departure_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    desired_arrival_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # ETA computed at creation time (routing/traffic), shown as "Planeado"
+    # during the active trip. Distinct from the live-recalculated ETA, which
+    # isn't persisted.
+    calculated_arrival_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    # Set when the trip actually happens.
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
