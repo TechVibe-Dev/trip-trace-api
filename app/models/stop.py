@@ -32,7 +32,14 @@ class Stop(Base):
     lat: Mapped[float] = mapped_column(Float, nullable=False)
     lng: Mapped[float] = mapped_column(Float, nullable=False)
 
-    arrival_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Calculated when the trip is created vs. what actually happened —
+    # these can differ (traffic, detours), and both are shown in the app.
+    planned_arrival_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    actual_arrival_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     departure_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
 

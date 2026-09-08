@@ -7,4 +7,5 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Finalized Trip and Stop schema: added `planned_departure_at`, `desired_arrival_at`, `calculated_arrival_at` to Trip, and split Stop's `arrival_at` into `planned_arrival_at`/`actual_arrival_at`. ([#10](https://github.com/TechVibe-Dev/trip-trace-api/pull/10))
 - Automated backport PR creation (`main` → `develop`) after a release/hotfix merge. ([#9](https://github.com/TechVibe-Dev/trip-trace-api/pull/9))
