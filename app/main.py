@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .routers import auth
+from .routers import auth, trips
 
 
 settings = get_settings()
@@ -39,5 +39,4 @@ def health_check():
 
 
 app.include_router(auth.router)
-
-# TODO: include trips, stops, and gps_points routers once implemented
+app.include_router(trips.router)
