@@ -1,10 +1,10 @@
 # TripTrace API
 
-Backend de TripTrace App: registra viajes en auto (ruta real, ruta prevista, paradas) y calcula
-metricas del viaje (velocidad maxima/minima/promedio, tramos lentos y rapidos).
+Backend for TripTrace App: records car trips (actual route, planned route, stops) and
+calculates trip metrics (max/min/average speed, slow and fast segments).
 
-El cliente principal es la app Android (Kotlin + Room), que graba cada viaje localmente y lo
-sincroniza con esta API al finalizar.
+The main client is the Android app (Kotlin + Room), which records each trip locally and
+syncs it with this API once it's finished.
 
 ## Stack
 
@@ -13,10 +13,10 @@ sincroniza con esta API al finalizar.
 - PostgreSQL
 - JWT auth (python-jose + bcrypt)
 
-## Desarrollo local
+## Local development
 
 ```bash
-cp .env.default .env  # completar DATABASE_URL y SECRET_KEY
+cp .env.default .env  # fill in DATABASE_URL and SECRET_KEY
 pip install -r requirements.txt
 ./start_dev.sh
 ```
