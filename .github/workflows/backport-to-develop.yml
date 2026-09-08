@@ -1,0 +1,40 @@
+name: Backport to develop
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  backport:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if there is anything to backport
+        id: diff
+        run: |
+          git fetch origin develop
+          if git diff --quiet origin/develop origin/main; then
+            echo "has_diff=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_diff=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create backport PR
+        if: steps.diff.outputs.has_diff == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --base develop \
+            --head main \
+            --title "Backport main to develop" \
+            --body "Automated backport after a release/hotfix merge to main." \
+            || echo "Backport PR already exists, skipping"
