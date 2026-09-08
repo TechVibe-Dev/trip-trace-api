@@ -20,3 +20,14 @@ cp .env.default .env  # fill in DATABASE_URL and SECRET_KEY
 pip install -r requirements.txt
 ./start_dev.sh
 ```
+
+## Branching model
+
+- `main`: released code only. Updated via PR from `develop`.
+- `develop`: integration branch. All feature branches merge here.
+- `feature/{name}`: one branch per unit of work, branched off `develop`.
+
+## Releases
+
+| Version | PR | Summary |
+| --- | --- | --- |
