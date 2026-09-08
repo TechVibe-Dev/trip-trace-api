@@ -23,9 +23,10 @@ pip install -r requirements.txt
 
 ## Branching model
 
-- `main`: released code only. Updated via PR from `develop`.
-- `develop`: integration branch. All feature branches merge here.
-- `feature/{name}`: one branch per unit of work, branched off `develop`.
+- `main`: released code only (production). Updated via a `release/{version}` branch merged with a PR.
+- `develop`: integration branch. All `feature/{name}`, `doc/{name}`, etc. branches merge here via PR.
+- `feature/{name}`, `doc/{name}`, ...: one branch per unit of work, branched off `develop`.
+- `release/{version}` (e.g. `release/0.0.1`): cut from `develop` when preparing a production release; merged into `main` via PR.
 
 ## Releases
 
