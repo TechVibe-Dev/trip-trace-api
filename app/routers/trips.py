@@ -19,6 +19,7 @@ from ..schemas.trip import (
     TripRead,
     TripUpdate,
 )
+from ..services.trip_stats_service import compute_trip_stats
 
 router = APIRouter(prefix="/api/v1/trips", tags=["trips"])
 
@@ -83,6 +84,30 @@ def delete_trip(trip_id: str, db: DbDep, current_user: CurrentUserDep) -> None:
     trip = _get_owned_trip(db, trip_id, current_user.id)
     db.delete(trip)
     db.commit()
+
+
+@router.post("/{trip_id}/finalize", response_model=TripRead)
+def finalize_trip(trip_id: str, db: DbDep, current_user: CurrentUserDep) -> Trip:
+    """Computes distance/speed stats from the trip's GPS points and persists
+    them on the trip. Call this after the app has synced its recorded points
+    (see android Sync work) — with no points yet, stats just come back null.
+    """
+    trip = _get_owned_trip(db, trip_id, current_user.id)
+    points = (
+        db.query(GpsPoint)
+        .filter(GpsPoint.trip_id == trip_id)
+        .order_by(GpsPoint.recorded_at)
+        .all()
+    )
+    stats = compute_trip_stats(points)
+    trip.distance_km = stats.distance_km
+    trip.max_speed = stats.max_speed
+    trip.min_speed = stats.min_speed
+    trip.avg_speed = stats.avg_speed
+    db.add(trip)
+    db.commit()
+    db.refresh(trip)
+    return trip
 
 
 # --- Stops (nested under a trip) ---
