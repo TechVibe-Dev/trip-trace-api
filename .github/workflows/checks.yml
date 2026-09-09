@@ -1,0 +1,41 @@
+name: API Checks
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+      - 'hotfix/**'
+      - 'release/**'
+  pull_request:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || (!startsWith(github.head_ref, 'feature/') && !startsWith(github.head_ref, 'hotfix/') && !startsWith(github.head_ref, 'release/') && !startsWith(github.head_ref, 'doc/'))
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Verify the app imports cleanly
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/dummy
+          SECRET_KEY: dummy-secret-for-ci
+        run: python -c "from app.main import app"
