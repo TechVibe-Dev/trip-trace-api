@@ -8,7 +8,7 @@ jobs:
   backport:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pull-requests: write
 
     steps:
@@ -32,9 +32,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          BRANCH_NAME="backport/main-to-develop-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH_NAME"
+          git push origin "$BRANCH_NAME"
           gh pr create \
             --base develop \
-            --head main \
+            --head "$BRANCH_NAME" \
             --title "Backport main to develop" \
             --body "Automated backport after a release/hotfix merge to main." \
             || echo "Backport PR already exists, skipping"
