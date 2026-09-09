@@ -7,7 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-- Added CRUD endpoints for trips, stops, and gps points. ([#16](https://github.com/TechVibe-Dev/trip-trace-api/pull/16))
+## [0.2.0] - 8 Sep 2026
+
+### Added
+
+- CRUD endpoints for trips, stops, and gps points. ([#16](https://github.com/TechVibe-Dev/trip-trace-api/pull/16))
 
 ## [0.1.0] - 8 Sep 2026
 
