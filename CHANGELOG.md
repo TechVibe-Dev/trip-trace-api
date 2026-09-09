@@ -7,7 +7,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-- Added `POST /trips/{trip_id}/finalize` to compute and persist trip stats (distance, max/min/avg speed) from GPS points. ([#20](https://github.com/TechVibe-Dev/trip-trace-api/pull/20))
+- Added `POST /trips/{trip_id}/finalize` (compute and persist distance/speed stats) and `GET /trips/{trip_id}/segments` (slow/fast segment detection) from GPS points. ([#20](https://github.com/TechVibe-Dev/trip-trace-api/pull/20))
 - Backport workflow now pushes a dedicated branch instead of using `main` directly as the PR head, so deleting the branch after merge can't delete `main`. ([#19](https://github.com/TechVibe-Dev/trip-trace-api/pull/19))
 
 ## [0.2.0] - 8 Sep 2026
