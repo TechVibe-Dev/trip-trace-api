@@ -7,6 +7,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Configured Dependabot (pip + github-actions), weekly. ([#27](https://github.com/TechVibe-Dev/trip-trace-api/pull/27))
+
 ## [0.3.0] - 9 Sep 2026
 
 ### Added
