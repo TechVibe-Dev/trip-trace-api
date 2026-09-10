@@ -108,3 +108,14 @@ class GpsPointRead(BaseModel):
     recorded_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class TripSegmentRead(BaseModel):
+    segment_type: str
+    start_lat: float
+    start_lng: float
+    end_lat: float
+    end_lng: float
+    start_time: datetime
+    end_time: datetime
+    avg_speed: float

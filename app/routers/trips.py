@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,8 +18,11 @@ from ..schemas.trip import (
     StopUpdate,
     TripCreate,
     TripRead,
+    TripSegmentRead,
     TripUpdate,
 )
+from ..services.routing_service import RoutingError, compute_route
+from ..services.trip_stats_service import compute_trip_segments, compute_trip_stats
 
 router = APIRouter(prefix="/api/v1/trips", tags=["trips"])
 
@@ -83,6 +87,93 @@ def delete_trip(trip_id: str, db: DbDep, current_user: CurrentUserDep) -> None:
     trip = _get_owned_trip(db, trip_id, current_user.id)
     db.delete(trip)
     db.commit()
+
+
+@router.post("/{trip_id}/calculate-route", response_model=TripRead)
+def calculate_trip_route(trip_id: str, db: DbDep, current_user: CurrentUserDep) -> Trip:
+    """Calls Google Routes (traffic-aware) using the trip's own
+    origin/destination/planned_departure_at, and persists the resulting ETA
+    and route polyline on the trip.
+
+    If planned_departure_at isn't set (an "ahora" trip), uses the current
+    time — matches "Guardar e iniciar ahora" in the app.
+    """
+    trip = _get_owned_trip(db, trip_id, current_user.id)
+
+    departure_time = trip.planned_departure_at or datetime.now(timezone.utc)
+
+    try:
+        route = compute_route(
+            origin_lat=trip.origin_lat,
+            origin_lng=trip.origin_lng,
+            destination_lat=trip.destination_lat,
+            destination_lng=trip.destination_lng,
+            departure_time=departure_time,
+        )
+    except RoutingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Could not calculate route: {e}",
+        ) from e
+
+    trip.calculated_arrival_at = departure_time + timedelta(seconds=route.duration_seconds)
+    trip.planned_route_polyline = route.encoded_polyline
+    db.add(trip)
+    db.commit()
+    db.refresh(trip)
+    return trip
+
+
+@router.post("/{trip_id}/finalize", response_model=TripRead)
+def finalize_trip(trip_id: str, db: DbDep, current_user: CurrentUserDep) -> Trip:
+    """Computes distance/speed stats from the trip's GPS points and persists
+    them on the trip. Call this after the app has synced its recorded points
+    (see android Sync work) — with no points yet, stats just come back null.
+    """
+    trip = _get_owned_trip(db, trip_id, current_user.id)
+    points = (
+        db.query(GpsPoint)
+        .filter(GpsPoint.trip_id == trip_id)
+        .order_by(GpsPoint.recorded_at)
+        .all()
+    )
+    stats = compute_trip_stats(points)
+    trip.distance_km = stats.distance_km
+    trip.max_speed = stats.max_speed
+    trip.min_speed = stats.min_speed
+    trip.avg_speed = stats.avg_speed
+    db.add(trip)
+    db.commit()
+    db.refresh(trip)
+    return trip
+
+
+@router.get("/{trip_id}/segments", response_model=List[TripSegmentRead])
+def get_trip_segments(trip_id: str, db: DbDep, current_user: CurrentUserDep) -> list[TripSegmentRead]:
+    """Slow/fast segments computed on the fly from the trip's GPS points,
+    relative to the trip's own average speed — no dedicated table.
+    """
+    _get_owned_trip(db, trip_id, current_user.id)
+    points = (
+        db.query(GpsPoint)
+        .filter(GpsPoint.trip_id == trip_id)
+        .order_by(GpsPoint.recorded_at)
+        .all()
+    )
+    segments = compute_trip_segments(points)
+    return [
+        TripSegmentRead(
+            segment_type=s.segment_type,
+            start_lat=s.start_lat,
+            start_lng=s.start_lng,
+            end_lat=s.end_lat,
+            end_lng=s.end_lng,
+            start_time=s.start_time,
+            end_time=s.end_time,
+            avg_speed=s.avg_speed,
+        )
+        for s in segments
+    ]
 
 
 # --- Stops (nested under a trip) ---

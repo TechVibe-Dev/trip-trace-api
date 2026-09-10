@@ -7,6 +7,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 9 Sep 2026
+
+### Added
+
+- Integrated Google Routes API (traffic-aware) via `POST /trips/{trip_id}/calculate-route` to compute ETA and route polyline. ([#22](https://github.com/TechVibe-Dev/trip-trace-api/pull/22))
+- Added `POST /trips/{trip_id}/finalize` (compute and persist distance/speed stats) and `GET /trips/{trip_id}/segments` (slow/fast segment detection) from GPS points. ([#20](https://github.com/TechVibe-Dev/trip-trace-api/pull/20))
+- Added a CI workflow that installs dependencies and verifies the app imports cleanly on push/PR. ([#21](https://github.com/TechVibe-Dev/trip-trace-api/pull/21))
+
+### Changed
+
+- Backport workflow now pushes a dedicated branch instead of using `main` directly as the PR head, so deleting the branch after merge can't delete `main`. ([#19](https://github.com/TechVibe-Dev/trip-trace-api/pull/19))
+
 ## [0.2.0] - 8 Sep 2026
 
 ### Added

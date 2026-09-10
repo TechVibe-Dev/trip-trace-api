@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # revoked server-side before it expires (see decision in README/issue).
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 259200
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
+    GOOGLE_ROUTES_API_KEY: str = ""
 
     @property
     def cors_origins_list(self) -> List[str]:
