@@ -7,6 +7,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Reject passwords over 72 bytes with a clean validation error on register/login, instead of letting bcrypt crash (needed before bumping bcrypt to 5.x — see #30). ([#33](https://github.com/TechVibe-Dev/trip-trace-api/pull/33))
 - Configured Dependabot (pip + github-actions), weekly. ([#27](https://github.com/TechVibe-Dev/trip-trace-api/pull/27))
 
 ## [0.3.0] - 9 Sep 2026
