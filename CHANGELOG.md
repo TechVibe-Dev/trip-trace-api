@@ -7,8 +7,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 18 Sep 2026
+
+### Fixed
+
 - Reject passwords over 72 bytes with a clean validation error on register/login, instead of letting bcrypt crash (needed before bumping bcrypt to 5.x — see #30). ([#33](https://github.com/TechVibe-Dev/trip-trace-api/pull/33))
+
+### Changed
+
 - Configured Dependabot (pip + github-actions), monthly. ([#27](https://github.com/TechVibe-Dev/trip-trace-api/pull/27), [#37](https://github.com/TechVibe-Dev/trip-trace-api/pull/37))
+- Updated dependencies (no security advisories in this batch, routine version bumps): bcrypt →5.0.0, pydantic →2.13.5, alembic →1.19.2→1.20.0, psycopg2-binary →2.9.13, uvicorn →0.53.0, sqlalchemy →2.0.53, actions/checkout →7, actions/setup-python →7. ([#28](https://github.com/TechVibe-Dev/trip-trace-api/pull/28), [#29](https://github.com/TechVibe-Dev/trip-trace-api/pull/29), [#30](https://github.com/TechVibe-Dev/trip-trace-api/pull/30), [#31](https://github.com/TechVibe-Dev/trip-trace-api/pull/31), [#32](https://github.com/TechVibe-Dev/trip-trace-api/pull/32), [#34](https://github.com/TechVibe-Dev/trip-trace-api/pull/34), [#35](https://github.com/TechVibe-Dev/trip-trace-api/pull/35), [#36](https://github.com/TechVibe-Dev/trip-trace-api/pull/36), [#38](https://github.com/TechVibe-Dev/trip-trace-api/pull/38))
 
 ## [0.3.0] - 9 Sep 2026
 
