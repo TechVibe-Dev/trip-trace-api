@@ -7,6 +7,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.1] - 23 Sep 2026
+
+### Fixed
+
+- Fixed `calculate-route` returning 400 when `planned_departure_at` had already passed — Google Routes' `TRAFFIC_AWARE` mode needs a present-or-future departure time, so a past one now falls back to "now", same as when it's unset. ([#45](https://github.com/TechVibe-Dev/trip-trace-api/pull/45))
+
 ## [0.5.0] - 23 Sep 2026
 
 ### Added

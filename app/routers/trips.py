@@ -95,12 +95,21 @@ def calculate_trip_route(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
     origin/destination/planned_departure_at, and persists the resulting ETA
     and route polyline on the trip.
 
-    If planned_departure_at isn't set (an "ahora" trip), uses the current
-    time — matches "Guardar e iniciar ahora" in the app.
+    Uses the current time instead of planned_departure_at whenever that's
+    unset OR already in the past (an "ahora" trip, or a planned trip whose
+    departure time has since passed) — TRAFFIC_AWARE routing needs a
+    present-or-future departure time; Google's Routes API returns 400 for a
+    past one, since it can't compute live traffic for a moment that already
+    happened.
     """
     trip = _get_owned_trip(db, trip_id, current_user.id)
 
-    departure_time = trip.planned_departure_at or datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc)
+    departure_time = (
+        trip.planned_departure_at
+        if trip.planned_departure_at and trip.planned_departure_at > now
+        else now
+    )
 
     try:
         route = compute_route(
