@@ -1,19 +1,26 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..models.stop import StopType
 from ..models.trip import TripStatus
 
+# Valid ranges for real-world coordinates — latitude spans the poles,
+# longitude wraps the globe. Rejecting out-of-range values here (422) is
+# cheap insurance now that three separate clients (Android app, web
+# frontend, Telegram bot) all send coordinates to this API.
+LATITUDE = Field(ge=-90, le=90)
+LONGITUDE = Field(ge=-180, le=180)
+
 
 class TripCreate(BaseModel):
     origin_name: str
-    origin_lat: float
-    origin_lng: float
+    origin_lat: float = LATITUDE
+    origin_lng: float = LONGITUDE
     destination_name: str
-    destination_lat: float
-    destination_lng: float
+    destination_lat: float = LATITUDE
+    destination_lng: float = LONGITUDE
     planned_route_polyline: Optional[str] = None
     planned_departure_at: Optional[datetime] = None
     desired_arrival_at: Optional[datetime] = None
@@ -62,8 +69,8 @@ class TripRead(BaseModel):
 class StopCreate(BaseModel):
     type: StopType
     name: Optional[str] = None
-    lat: float
-    lng: float
+    lat: float = LATITUDE
+    lng: float = LONGITUDE
     planned_arrival_at: Optional[datetime] = None
     sequence: int
 
@@ -89,8 +96,8 @@ class StopRead(BaseModel):
 
 
 class GpsPointCreate(BaseModel):
-    lat: float
-    lng: float
+    lat: float = LATITUDE
+    lng: float = LONGITUDE
     speed: Optional[float] = None
     accuracy: Optional[float] = None
     bearing: Optional[float] = None
