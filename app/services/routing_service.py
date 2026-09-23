@@ -54,7 +54,18 @@ def compute_route(
     try:
         response = httpx.post(ROUTES_API_URL, json=body, headers=headers, timeout=10.0)
         response.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        # e itself (str(e), from raise_for_status()) is just "Client error
+        # '400 Bad Request' for url '...'" — the actually useful part is
+        # Google's own JSON error body (reason, message), which raise_for_status
+        # doesn't include. Reading it here is what makes future failures
+        # self-diagnosing instead of a generic wrapper with no real detail.
+        raise RoutingError(
+            f"Routes API returned {e.response.status_code}: {e.response.text}"
+        ) from e
     except httpx.HTTPError as e:
+        # Connection-level failures (timeout, DNS, etc.) have no response
+        # body to read — str(e) is all there is here.
         raise RoutingError(f"Routes API request failed: {e}") from e
 
     data = response.json()
