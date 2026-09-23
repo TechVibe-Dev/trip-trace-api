@@ -7,6 +7,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Fixed `calculate-route`'s "now" fallback still being rejected by Google ("Timestamp must be set to a future time.") — a bare `now()` is often already past by the time it reaches Google's servers, so it now gets a 1-minute buffer. ([#51](https://github.com/TechVibe-Dev/trip-trace-api/pull/51))
+
 ## [0.5.2] - 23 Sep 2026
 
 ### Fixed
