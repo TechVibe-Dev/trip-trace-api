@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.2] - 23 Sep 2026
+
+### Fixed
+
 - `calculate-route` failures now include Google's actual error body (reason, message) in the 502 `detail`, instead of just httpx's generic "400 Bad Request" wrapper with no real information. ([#48](https://github.com/TechVibe-Dev/trip-trace-api/pull/48))
 
 ## [0.5.1] - 23 Sep 2026
