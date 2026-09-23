@@ -4,6 +4,12 @@ from typing import Optional
 
 from ..models.gps_point import GpsPoint
 
+# GpsPoint.speed is stored in m/s (Android's Location.getSpeed() unit,
+# passed straight through when synced) — converted to km/h right where it's
+# read, so everything this module computes and returns is consistently
+# km/h, matching how every UI (Android, web) labels these values.
+MS_TO_KMH = 3.6
+
 
 def _haversine_distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Great-circle distance between two lat/lng points, in kilometers."""
@@ -37,14 +43,15 @@ class TripStats:
 def compute_trip_stats(points: list[GpsPoint]) -> TripStats:
     """Computes distance and speed stats from a trip's ordered GPS points.
 
-    Expects `points` already sorted by `recorded_at` ascending.
+    Expects `points` already sorted by `recorded_at` ascending. All speed
+    values are returned in km/h.
     """
     if not points:
         return TripStats(distance_km=None, max_speed=None, min_speed=None, avg_speed=None)
 
-    speeds = [p.speed for p in points if p.speed is not None]
-    max_speed = max(speeds) if speeds else None
-    min_speed = min(speeds) if speeds else None
+    speeds_kmh = [p.speed * MS_TO_KMH for p in points if p.speed is not None]
+    max_speed = max(speeds_kmh) if speeds_kmh else None
+    min_speed = min(speeds_kmh) if speeds_kmh else None
 
     total_distance_km = 0.0
     for previous, current in zip(points, points[1:]):
@@ -65,8 +72,8 @@ def compute_trip_stats(points: list[GpsPoint]) -> TripStats:
 
     return TripStats(
         distance_km=round(total_distance_km, 2),
-        max_speed=max_speed,
-        min_speed=min_speed,
+        max_speed=round(max_speed, 2) if max_speed is not None else None,
+        min_speed=round(min_speed, 2) if min_speed is not None else None,
         avg_speed=round(avg_speed, 2) if avg_speed is not None else None,
     )
 
@@ -75,6 +82,9 @@ def compute_trip_stats(points: list[GpsPoint]) -> TripStats:
 # it's well below the trip's pace (traffic, red lights) and "fast" if well
 # above it. Deliberately simple: no comparison against historical data on
 # the same road, no external traffic API — just the trip's own numbers.
+# The classification itself is unit-independent (a ratio, computed straight
+# from GpsPoint.speed in m/s) — only the avg_speed exposed per segment gets
+# converted to km/h, in _build_segment below.
 SLOW_THRESHOLD_RATIO = 0.6
 FAST_THRESHOLD_RATIO = 1.4
 
@@ -104,7 +114,8 @@ class TripSegment:
 def compute_trip_segments(points: list[GpsPoint]) -> list[TripSegment]:
     """Groups a trip's GPS points into consecutive SLOW/NORMAL/FAST segments,
     relative to the trip's own average speed. Points without a speed reading
-    are skipped entirely (can't classify them).
+    are skipped entirely (can't classify them). Each segment's avg_speed is
+    returned in km/h.
     """
     points_with_speed = [p for p in points if p.speed is not None]
     if len(points_with_speed) < 2:
@@ -139,7 +150,7 @@ def compute_trip_segments(points: list[GpsPoint]) -> list[TripSegment]:
 
 
 def _build_segment(segment_type: str, points: list[GpsPoint]) -> TripSegment:
-    speeds = [p.speed for p in points]
+    speeds_kmh = [p.speed * MS_TO_KMH for p in points]
     return TripSegment(
         segment_type=segment_type,
         start_lat=points[0].lat,
@@ -148,5 +159,5 @@ def _build_segment(segment_type: str, points: list[GpsPoint]) -> TripSegment:
         end_lng=points[-1].lng,
         start_time=points[0].recorded_at,
         end_time=points[-1].recorded_at,
-        avg_speed=sum(speeds) / len(speeds),
+        avg_speed=sum(speeds_kmh) / len(speeds_kmh),
     )

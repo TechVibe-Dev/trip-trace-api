@@ -7,6 +7,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Fixed a speed unit inconsistency: `max_speed`/`min_speed` and segment `avg_speed` were left in m/s (Android's `Location.getSpeed()` unit) while trip `avg_speed` was already km/h — all four are now consistently km/h. ([#41](https://github.com/TechVibe-Dev/trip-trace-api/pull/41))
+
 ## [0.4.0] - 18 Sep 2026
 
 ### Fixed
