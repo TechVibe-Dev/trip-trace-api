@@ -29,6 +29,13 @@ router = APIRouter(prefix="/api/v1/trips", tags=["trips"])
 DbDep = Annotated[Session, Depends(get_db)]
 CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
+# Google rejects a departureTime that isn't STRICTLY in the future (confirmed
+# via its own error: "Timestamp must be set to a future time.", INVALID_ARGUMENT)
+# — a bare now() is usually already in the past by the time it reaches
+# Google's servers (network round-trip, serialization), even though it was
+# accurate the instant we read it. This buffer absorbs that gap.
+DEPARTURE_TIME_BUFFER = timedelta(minutes=1)
+
 
 def _get_owned_trip(db: Session, trip_id: str, user_id: str) -> Trip:
     trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == user_id).first()
@@ -95,12 +102,12 @@ def calculate_trip_route(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
     origin/destination/planned_departure_at, and persists the resulting ETA
     and route polyline on the trip.
 
-    Uses the current time instead of planned_departure_at whenever that's
-    unset OR already in the past (an "ahora" trip, or a planned trip whose
-    departure time has since passed) — TRAFFIC_AWARE routing needs a
-    present-or-future departure time; Google's Routes API returns 400 for a
-    past one, since it can't compute live traffic for a moment that already
-    happened.
+    Uses the current time (plus a small buffer, see DEPARTURE_TIME_BUFFER)
+    instead of planned_departure_at whenever that's unset OR already in the
+    past (an "ahora" trip, or a planned trip whose departure time has since
+    passed) — TRAFFIC_AWARE routing needs a future departure time; Google's
+    Routes API returns 400 otherwise, since it can't compute live traffic
+    for a moment that already happened.
     """
     trip = _get_owned_trip(db, trip_id, current_user.id)
 
@@ -108,7 +115,7 @@ def calculate_trip_route(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
     departure_time = (
         trip.planned_departure_at
         if trip.planned_departure_at and trip.planned_departure_at > now
-        else now
+        else now + DEPARTURE_TIME_BUFFER
     )
 
     try:
