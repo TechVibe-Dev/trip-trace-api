@@ -11,8 +11,13 @@ from ..models.gps_point import GpsPoint
 MS_TO_KMH = 3.6
 
 
-def _haversine_distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    """Great-circle distance between two lat/lng points, in kilometers."""
+def haversine_distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Great-circle distance between two lat/lng points, in kilometers.
+
+    Public (not prefixed) since stop_detection_service also needs this —
+    proximity-to-a-stop is the same distance calculation as leg-to-leg trip
+    distance, just compared against a much smaller threshold.
+    """
     earth_radius_km = 6371.0
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     d_phi = math.radians(lat2 - lat1)
@@ -55,7 +60,7 @@ def compute_trip_stats(points: list[GpsPoint]) -> TripStats:
 
     total_distance_km = 0.0
     for previous, current in zip(points, points[1:]):
-        total_distance_km += _haversine_distance_km(
+        total_distance_km += haversine_distance_km(
             previous.lat, previous.lng, current.lat, current.lng
         )
 
