@@ -11,6 +11,7 @@ from ..models.stop import Stop
 from ..models.trip import Trip
 from ..models.user import User
 from ..schemas.trip import (
+    EtaRecalculation,
     GpsPointCreate,
     GpsPointRead,
     StopCreate,
@@ -22,6 +23,7 @@ from ..schemas.trip import (
     TripUpdate,
 )
 from ..services.routing_service import RoutingError, compute_route
+from ..services.stop_detection_service import find_newly_reached_stops
 from ..services.trip_stats_service import compute_trip_segments, compute_trip_stats
 
 router = APIRouter(prefix="/api/v1/trips", tags=["trips"])
@@ -96,6 +98,13 @@ def delete_trip(trip_id: str, db: DbDep, current_user: CurrentUserDep) -> None:
     db.commit()
 
 
+def _future_departure_time(planned_departure_at: Optional[datetime]) -> datetime:
+    now = datetime.now(timezone.utc)
+    if planned_departure_at and planned_departure_at > now:
+        return planned_departure_at
+    return now + DEPARTURE_TIME_BUFFER
+
+
 @router.post("/{trip_id}/calculate-route", response_model=TripRead)
 def calculate_trip_route(trip_id: str, db: DbDep, current_user: CurrentUserDep) -> Trip:
     """Calls Google Routes (traffic-aware) using the trip's own
@@ -110,13 +119,7 @@ def calculate_trip_route(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
     for a moment that already happened.
     """
     trip = _get_owned_trip(db, trip_id, current_user.id)
-
-    now = datetime.now(timezone.utc)
-    departure_time = (
-        trip.planned_departure_at
-        if trip.planned_departure_at and trip.planned_departure_at > now
-        else now + DEPARTURE_TIME_BUFFER
-    )
+    departure_time = _future_departure_time(trip.planned_departure_at)
 
     try:
         route = compute_route(
@@ -138,6 +141,53 @@ def calculate_trip_route(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
     db.commit()
     db.refresh(trip)
     return trip
+
+
+@router.post("/{trip_id}/recalculate-eta", response_model=EtaRecalculation)
+def recalculate_trip_eta(trip_id: str, db: DbDep, current_user: CurrentUserDep) -> EtaRecalculation:
+    """Live ETA for a trip already in progress: same Google Routes call as
+    calculate-route, but using the most recently recorded GPS point as the
+    origin instead of the trip's original starting point.
+
+    Deliberately does NOT persist onto the trip — calculated_arrival_at
+    keeps meaning "the original plan"; this is a snapshot of "given where
+    the trip actually is right now". Callers (the Android app, polling
+    every ~30s while a trip is active) hold onto this client-side instead.
+    """
+    trip = _get_owned_trip(db, trip_id, current_user.id)
+
+    latest_point = (
+        db.query(GpsPoint)
+        .filter(GpsPoint.trip_id == trip_id)
+        .order_by(GpsPoint.recorded_at.desc())
+        .first()
+    )
+    if latest_point is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No GPS points recorded yet for this trip",
+        )
+
+    departure_time = _future_departure_time(None)
+
+    try:
+        route = compute_route(
+            origin_lat=latest_point.lat,
+            origin_lng=latest_point.lng,
+            destination_lat=trip.destination_lat,
+            destination_lng=trip.destination_lng,
+            departure_time=departure_time,
+        )
+    except RoutingError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Could not recalculate ETA: {e}",
+        ) from e
+
+    return EtaRecalculation(
+        calculated_arrival_at=departure_time + timedelta(seconds=route.duration_seconds),
+        route_polyline=route.encoded_polyline,
+    )
 
 
 @router.post("/{trip_id}/finalize", response_model=TripRead)
@@ -268,6 +318,26 @@ def create_gps_points(
     db.commit()
     for point in points:
         db.refresh(point)
+
+    # Side effect: check whether any of the points just uploaded brought the
+    # trip within range of a stop that hasn't been reached yet (android#7 /
+    # api#7 — live stop progress). Points are already in submission order
+    # (== recorded_at ascending, same as the request body), matching what
+    # find_newly_reached_stops expects.
+    unreached_stops = (
+        db.query(Stop)
+        .filter(Stop.trip_id == trip_id, Stop.actual_arrival_at.is_(None))
+        .all()
+    )
+    if unreached_stops:
+        reached = find_newly_reached_stops(points, unreached_stops)
+        for stop in unreached_stops:
+            if stop.id in reached:
+                stop.actual_arrival_at = reached[stop.id]
+                db.add(stop)
+        if reached:
+            db.commit()
+
     return points
 
 
