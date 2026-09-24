@@ -7,6 +7,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+- Added `POST /trips/{id}/recalculate-eta` — live ETA from the trip's latest recorded GPS point instead of its original origin, not persisted (keeps `calculated_arrival_at` meaning "the original plan"). Uploading GPS points now also checks for newly-reached stops within 100m, persisting `actual_arrival_at` on them. ([#54](https://github.com/TechVibe-Dev/trip-trace-api/pull/54))
+
 ## [0.5.3] - 23 Sep 2026
 
 ### Fixed
