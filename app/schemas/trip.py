@@ -126,3 +126,12 @@ class TripSegmentRead(BaseModel):
     start_time: datetime
     end_time: datetime
     avg_speed: float
+
+
+class EtaRecalculation(BaseModel):
+    # Deliberately NOT persisted on the Trip (see recalculate_eta in
+    # routers/trips.py) — calculated_arrival_at keeps meaning "the original
+    # plan", this is a live snapshot computed from wherever the trip is
+    # right now.
+    calculated_arrival_at: datetime
+    route_polyline: str
