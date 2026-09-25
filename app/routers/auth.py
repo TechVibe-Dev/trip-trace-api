@@ -46,7 +46,16 @@ def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: DbDep,
 ) -> Token:
-    user = db.query(User).filter(User.email == form_data.username).first()
+    # OAuth2PasswordRequestForm's field is always named "username" per spec,
+    # regardless of what identifier it actually holds — accept either the
+    # user's email or their username here (android#83), same either/or
+    # pattern register() already uses to check for existing accounts.
+    identifier = form_data.username
+    user = (
+        db.query(User)
+        .filter((User.email == identifier) | (User.username == identifier))
+        .first()
+    )
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
