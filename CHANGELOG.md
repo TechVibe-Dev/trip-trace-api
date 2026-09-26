@@ -7,6 +7,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0] - 26 Sep 2026
+
+### Changed
+
+- `POST /auth/login` now accepts either the user's email or their username as the identifier — `username` already existed on the `User` model (used at registration), it just wasn't usable for login. Same either/or lookup `register()` already used to check for existing accounts. Closes `android#83`. ([#57](https://github.com/TechVibe-Dev/trip-trace-api/pull/57))
+
 ## [0.6.0] - 24 Sep 2026
 
 ### Added
