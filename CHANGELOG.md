@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added `PUT /auth/me/password` — deliberately separate from `PUT /auth/me` (which handles `username`), since changing a password is more security-sensitive than a plain profile edit. Requires `current_password`: the caller's JWT session proves they're logged in right now, not that they still know the password, so a stolen-but-valid token can't be used to lock the real owner out. Part of `android#87`.
+
 ## [0.7.0] - 26 Sep 2026
 
 ### Changed
