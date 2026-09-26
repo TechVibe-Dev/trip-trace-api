@@ -44,8 +44,8 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
 
 
-# Deliberately a separate endpoint/schema from UserUpdate (android#87) rather
-# than folding password fields into it — changing the password is a more
+# Deliberately a separate endpoint/schema from UserUpdate rather than
+# folding password fields into it — changing the password is a more
 # security-sensitive operation than a plain profile field edit, and keeping
 # it separate avoids ambiguity about what should happen if a combined
 # request had a bad current_password alongside an otherwise-valid username
