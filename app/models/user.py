@@ -39,3 +39,8 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    favorite_places: Mapped[list["FavoritePlace"]] = relationship(
+        "FavoritePlace",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
