@@ -7,13 +7,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.0] - 27 Sep 2026
+
 ### Added
 
-- Added `favorite_places` — user-curated places (name + lat/lng), one list per user usable for a trip's origin, destination, or any stop. `POST /favorite-places`, `GET /favorite-places`, `DELETE /favorite-places/{id}`. Part of `android#81`.
+- Added `favorite_places` — user-curated places (name + lat/lng), one list per user usable for a trip's origin, destination, or any stop. `POST /favorite-places`, `GET /favorite-places`, `DELETE /favorite-places/{id}`. Part of `android#81`. ([#63](https://github.com/TechVibe-Dev/trip-trace-api/pull/63))
 
 ### Changed
 
-- Deploys to Render are now manual (`workflow_dispatch`, `.github/workflows/deploy.yml`) instead of automatic on every push to `main` — merging a release no longer immediately puts it live, giving a window to double-check or adjust something first. Can deploy any branch's current commit (via Render's deploy hook `ref` parameter), not just `main` — e.g. a release branch, to fix something in it before merging. Deploying anything other than `main` requires explicitly confirming (`confirm_non_main: 'yes'`), a guard against an accidental non-main deploy to production; deploying `main` itself needs no extra step. Requires disabling Render's own Auto-Deploy setting for this to take effect, and a `RENDER_DEPLOY_HOOK_URL` repo secret (both set up outside this repo, in Render's dashboard and GitHub's secret settings).
+- Deploys to Render are now manual (`workflow_dispatch`, `.github/workflows/deploy.yml`) instead of automatic on every push to `main` — merging a release no longer immediately puts it live, giving a window to double-check or adjust something first. Can deploy any branch's current commit (via Render's deploy hook `ref` parameter), not just `main` — e.g. a release branch, to fix something in it before merging. Deploying anything other than `main` requires explicitly confirming (`confirm_non_main: 'yes'`), a guard against an accidental non-main deploy to production; deploying `main` itself needs no extra step. Requires disabling Render's own Auto-Deploy setting for this to take effect, and a `RENDER_DEPLOY_HOOK_URL` repo secret (both set up outside this repo, in Render's dashboard and GitHub's secret settings). ([#64](https://github.com/TechVibe-Dev/trip-trace-api/pull/64))
 
 ## [0.8.0] - 27 Sep 2026
 
