@@ -1,0 +1,47 @@
+name: Deploy to Render
+
+# Manual only, on purpose — Render's own auto-deploy-on-push is meant to be
+# turned off for this service once this workflow is in use. Deploys
+# whichever branch you choose (defaults to main) at its current commit —
+# not necessarily what's on main yet, which is what lets a release branch
+# get deployed and adjusted before merging, if needed.
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: true
+        default: 'main'
+      confirm_non_main:
+        description: 'Type "yes" to confirm — only required when branch is not main'
+        required: false
+        default: ''
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Cheap safety net: deploying main needs no extra step (the common
+      # case), deploying anything else needs a deliberate "yes" — a plain
+      # typo in the branch field fails closed instead of silently deploying
+      # the wrong thing to production.
+      - name: Guard against accidental non-main deploys
+        if: inputs.branch != 'main' && inputs.confirm_non_main != 'yes'
+        run: |
+          echo "::error::Deploying a branch other than main requires confirm_non_main set to 'yes'."
+          exit 1
+
+      - name: Checkout '${{ inputs.branch }}'
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Resolve commit SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Render's Deploy Hook, with a specific commit SHA via `ref=`, deploys
+      # that exact commit regardless of which branch it's on or whether
+      # it's been merged anywhere.
+      - name: Trigger Render deploy
+        run: curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}&ref=${{ steps.sha.outputs.sha }}"
