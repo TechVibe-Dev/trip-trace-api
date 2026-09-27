@@ -26,7 +26,7 @@ DbDep = Annotated[Session, Depends(get_db)]
 # in principle — this limits how fast it can be done, not the oracle
 # itself, which would need a bigger change like email verification).
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/hour")
+@limiter.limit("3/hour")
 def register(request: Request, user_in: UserCreate, db: DbDep) -> User:
     existing = (
         db.query(User)
@@ -50,12 +50,12 @@ def register(request: Request, user_in: UserCreate, db: DbDep) -> User:
     return user
 
 
-# Loose enough that a real user mistyping their password a few times in a
-# row never gets blocked, tight enough that brute-forcing a password by
-# guessing is impractical — 5 tries/minute is ~7,200/day at the theoretical
+# Loose enough that a real user mistyping their password a couple of times
+# in a row never gets blocked, tight enough that brute-forcing a password by
+# guessing is impractical — 3 tries/minute is ~4,320/day at the theoretical
 # max, versus billions of guesses/second with no limit at all.
 @router.post("/login", response_model=Token)
-@limiter.limit("5/minute")
+@limiter.limit("3/minute")
 def login(
     request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
