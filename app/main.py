@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .routers import auth, trips
+from .routers import auth, favorite_places, trips
 
 
 settings = get_settings()
@@ -40,3 +40,4 @@ def health_check():
 
 app.include_router(auth.router)
 app.include_router(trips.router)
+app.include_router(favorite_places.router)
