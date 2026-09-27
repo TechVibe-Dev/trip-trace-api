@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added `favorite_places` — user-curated places (name + lat/lng), one list per user usable for a trip's origin, destination, or any stop. `POST /favorite-places`, `GET /favorite-places`, `DELETE /favorite-places/{id}`. Part of `android#81`.
+
 ## [0.8.0] - 27 Sep 2026
 
 ### Added
