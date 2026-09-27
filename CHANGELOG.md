@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Rate-limited `POST /auth/login` (5/minute) and `POST /auth/register` (5/hour) using `slowapi`, keyed by client IP read from `X-Forwarded-For` (Render's standard uvicorn start command doesn't trust this header on its own, so `request.client.host` would otherwise resolve to Render's proxy for every caller, making the limit apply globally instead of per-IP). Mitigates brute-forcing a login password, and slows down both mass registration and using `/register`'s "already exists" response as an account-enumeration oracle — that oracle itself isn't fully closed by this (it still exists, just much slower to exploit); closing it outright would need email verification on registration, out of scope here. From a security review of both this API and the Android app.
+
 ## [0.9.0] - 27 Sep 2026
 
 ### Added
