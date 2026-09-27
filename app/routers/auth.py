@@ -1,13 +1,14 @@
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..dependencies import get_current_user
 from ..models.user import User
+from ..rate_limit import limiter
 from ..schemas.auth import PasswordChange, Token, UserCreate, UserRead, UserUpdate
 from ..services.auth_service import create_access_token, get_password_hash, verify_password
 
@@ -18,8 +19,15 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 DbDep = Annotated[Session, Depends(get_db)]
 
 
+# Tighter than login's — registration is a rarer, one-off action for a
+# genuine user, so a low ceiling doesn't cost real users anything, while
+# still slowing down both mass account creation and using the "already
+# exists" response as an email/username enumeration oracle (still possible
+# in principle — this limits how fast it can be done, not the oracle
+# itself, which would need a bigger change like email verification).
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
-def register(user_in: UserCreate, db: DbDep) -> User:
+@limiter.limit("3/hour")
+def register(request: Request, user_in: UserCreate, db: DbDep) -> User:
     existing = (
         db.query(User)
         .filter((User.email == user_in.email) | (User.username == user_in.username))
@@ -42,8 +50,14 @@ def register(user_in: UserCreate, db: DbDep) -> User:
     return user
 
 
+# Loose enough that a real user mistyping their password a couple of times
+# in a row never gets blocked, tight enough that brute-forcing a password by
+# guessing is impractical — 3 tries/minute is ~4,320/day at the theoretical
+# max, versus billions of guesses/second with no limit at all.
 @router.post("/login", response_model=Token)
+@limiter.limit("3/minute")
 def login(
+    request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: DbDep,
 ) -> Token:
