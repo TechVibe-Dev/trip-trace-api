@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -7,7 +8,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..dependencies import get_current_user
 from ..models.user import User
-from ..schemas.auth import Token, UserCreate, UserRead, UserUpdate
+from ..schemas.auth import PasswordChange, Token, UserCreate, UserRead, UserUpdate
 from ..services.auth_service import create_access_token, get_password_hash, verify_password
 
 
@@ -48,8 +49,8 @@ def login(
 ) -> Token:
     # OAuth2PasswordRequestForm's field is always named "username" per spec,
     # regardless of what identifier it actually holds — accept either the
-    # user's email or their username here (android#83), same either/or
-    # pattern register() already uses to check for existing accounts.
+    # user's email or their username here, same either/or pattern
+    # register() already uses to check for existing accounts.
     identifier = form_data.username
     user = (
         db.query(User)
@@ -94,3 +95,33 @@ def update_me(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+@router.put("/me/password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    password_change: PasswordChange,
+    db: DbDep,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    """Separate from update_me on purpose — requires current_password even
+    though the caller is already authenticated via JWT, since a valid
+    session alone doesn't prove they still know the password (e.g. a stolen
+    but not-yet-expired token). Without this check, whoever holds that token
+    could lock the real owner out permanently.
+
+    Setting password_changed_at here invalidates every token for this user,
+    everywhere (frontend, Android, /docs) — including the one used to make
+    this very request, since there's no per-device concept to spare it.
+    Callers should expect their own current session to stop working right
+    after this succeeds.
+    """
+    if not verify_password(password_change.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+
+    current_user.password_hash = get_password_hash(password_change.new_password)
+    current_user.password_changed_at = datetime.now(timezone.utc)
+    db.add(current_user)
+    db.commit()

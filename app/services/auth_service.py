@@ -28,10 +28,15 @@ def create_access_token(
     expires_delta: Optional[timedelta] = None,
 ) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (
+    now = datetime.utcnow()
+    expire = now + (
         expires_delta
         if expires_delta is not None
         else timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
-    to_encode.update({"exp": expire})
+    # "iat" (issued at) lets dependencies.get_current_user reject any token
+    # issued before a user's password_changed_at, even though it hasn't hit
+    # "exp" yet — the only invalidation mechanism available with stateless
+    # JWTs (see User.password_changed_at).
+    to_encode.update({"exp": expire, "iat": now})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
