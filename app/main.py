@@ -2,11 +2,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from .config import get_settings
-from .rate_limit import limiter
+from .rate_limit import limiter, rate_limit_exceeded_handler
 from .routers import auth, favorite_places, trips
 
 
@@ -28,10 +27,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="TripTrace API", lifespan=lifespan)
 
 # Wired in for the rate limits declared on individual endpoints (see
-# routers/auth.py) — a 429 with a clean JSON body instead of an unhandled
-# exception when a limit is hit.
+# routers/auth.py) — our own handler (not slowapi's default) returns a
+# 429 with a structured retry_after_seconds field, not just prose.
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
