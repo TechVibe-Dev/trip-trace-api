@@ -149,5 +149,5 @@ class EtaRecalculation(BaseModel):
     route_polyline: str
     # steps[0] is always "the next maneuver from here" — this route was
     # just computed FROM the trip's current position, so there's no
-    # separate step-matching to do client-side (android#110).
+    # separate step-matching to do client-side.
     steps: List[RouteStepRead]
