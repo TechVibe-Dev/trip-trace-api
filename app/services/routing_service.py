@@ -29,7 +29,7 @@ class RouteResult:
         self.encoded_polyline = encoded_polyline
         # Empty unless include_steps=True was passed — calculate_trip_route
         # (the one-time call before a trip starts) has no use for turn-by-turn
-        # data, only recalculate_trip_eta (android#110's live nav view) does.
+        # data, only recalculate_trip_eta's live navigation view does.
         self.steps = steps or []
 
 
@@ -61,9 +61,9 @@ def compute_route(
         # Without this, Google defaults navigationInstruction.instructions to
         # English — harmless while only the polyline/duration were used, but
         # would have shipped "Turn right onto Main Street" into an
-        # all-Spanish, voseo app the moment steps started being requested
-        # (android#110). es-419 = Latin American Spanish; matches the app's
-        # own voseo (vos, not tú) better than plain "es" (which leans
+        # all-Spanish, voseo app the moment per-step instructions started
+        # being requested. es-419 = Latin American Spanish; matches the
+        # app's own voseo (vos, not tú) better than plain "es" (which leans
         # Spain-Spanish conventions).
         "languageCode": "es-419",
     }
@@ -72,13 +72,13 @@ def compute_route(
 
     field_mask = "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline"
     if include_steps:
-        # Per-step turn-by-turn data for the live navigation view
-        # (android#110) — same Pro-tier billing as the fields above, Google
-        # only ever sends what's explicitly asked for here, regardless of
-        # what the caller does with the response afterwards. Each step's own
-        # polyline is requested too (unused for now) since it's the same
-        # field-mask cost either way and useful later, e.g. to highlight
-        # just the current step's stretch of road.
+        # Per-step turn-by-turn data for the live in-app navigation view —
+        # same Pro-tier billing as the fields above, Google only ever sends
+        # what's explicitly asked for here, regardless of what the caller
+        # does with the response afterwards. Each step's own polyline is
+        # requested too (unused for now) since it's the same field-mask
+        # cost either way and useful later, e.g. to highlight just the
+        # current step's stretch of road.
         field_mask += (
             ",routes.legs.steps.navigationInstruction"
             ",routes.legs.steps.distanceMeters"
