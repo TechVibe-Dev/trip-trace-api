@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -128,6 +128,18 @@ class TripSegmentRead(BaseModel):
     avg_speed: float
 
 
+class RouteStepRead(BaseModel):
+    # maneuver is Google's own enum value verbatim (e.g. "TURN_RIGHT",
+    # "ROUNDABOUT_LEFT") — passed through as a plain string rather than
+    # mirrored into our own enum, so a maneuver type Google adds later
+    # doesn't need a schema change here to show up; the client decides how
+    # (or whether) to render one it doesn't recognize.
+    maneuver: str
+    instructions: str
+    distance_meters: int
+    polyline: str
+
+
 class EtaRecalculation(BaseModel):
     # Deliberately NOT persisted on the Trip (see recalculate_eta in
     # routers/trips.py) — calculated_arrival_at keeps meaning "the original
@@ -135,3 +147,7 @@ class EtaRecalculation(BaseModel):
     # right now.
     calculated_arrival_at: datetime
     route_polyline: str
+    # steps[0] is always "the next maneuver from here" — this route was
+    # just computed FROM the trip's current position, so there's no
+    # separate step-matching to do client-side (android#110).
+    steps: List[RouteStepRead]
