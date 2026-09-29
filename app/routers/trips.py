@@ -14,6 +14,7 @@ from ..schemas.trip import (
     EtaRecalculation,
     GpsPointCreate,
     GpsPointRead,
+    RouteStepRead,
     StopCreate,
     StopRead,
     StopUpdate,
@@ -153,6 +154,11 @@ def recalculate_trip_eta(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
     keeps meaning "the original plan"; this is a snapshot of "given where
     the trip actually is right now". Callers (the Android app, polling
     every ~30s while a trip is active) hold onto this client-side instead.
+
+    Also requests turn-by-turn steps (android#110, live navigation view) —
+    since this route is computed FROM the trip's current position, steps[0]
+    is always "the next maneuver from here": no separate step-matching is
+    needed on the client, the freshest poll already carries it.
     """
     trip = _get_owned_trip(db, trip_id, current_user.id)
 
@@ -177,6 +183,7 @@ def recalculate_trip_eta(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
             destination_lat=trip.destination_lat,
             destination_lng=trip.destination_lng,
             departure_time=departure_time,
+            include_steps=True,
         )
     except RoutingError as e:
         raise HTTPException(
@@ -187,6 +194,15 @@ def recalculate_trip_eta(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
     return EtaRecalculation(
         calculated_arrival_at=departure_time + timedelta(seconds=route.duration_seconds),
         route_polyline=route.encoded_polyline,
+        steps=[
+            RouteStepRead(
+                maneuver=s.maneuver,
+                instructions=s.instructions,
+                distance_meters=s.distance_meters,
+                polyline=s.encoded_polyline,
+            )
+            for s in route.steps
+        ],
     )
 
 
