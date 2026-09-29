@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 import httpx
 
@@ -8,11 +8,29 @@ from ..config import get_settings
 ROUTES_API_URL = "https://routes.googleapis.com/directions/v2:computeRoutes"
 
 
+class RouteStep:
+    def __init__(self, maneuver: str, instructions: str, distance_meters: int, encoded_polyline: str):
+        self.maneuver = maneuver
+        self.instructions = instructions
+        self.distance_meters = distance_meters
+        self.encoded_polyline = encoded_polyline
+
+
 class RouteResult:
-    def __init__(self, duration_seconds: int, distance_meters: int, encoded_polyline: str):
+    def __init__(
+        self,
+        duration_seconds: int,
+        distance_meters: int,
+        encoded_polyline: str,
+        steps: Optional[List[RouteStep]] = None,
+    ):
         self.duration_seconds = duration_seconds
         self.distance_meters = distance_meters
         self.encoded_polyline = encoded_polyline
+        # Empty unless include_steps=True was passed — calculate_trip_route
+        # (the one-time call before a trip starts) has no use for turn-by-turn
+        # data, only recalculate_trip_eta's live navigation view does.
+        self.steps = steps or []
 
 
 class RoutingError(Exception):
@@ -25,6 +43,7 @@ def compute_route(
     destination_lat: float,
     destination_lng: float,
     departure_time: Optional[datetime] = None,
+    include_steps: bool = False,
 ) -> RouteResult:
     settings = get_settings()
     if not settings.GOOGLE_ROUTES_API_KEY:
@@ -39,16 +58,39 @@ def compute_route(
         # Uses live/predicted traffic conditions — this is the whole point of
         # picking Google Routes over a free option like OSRM (see PR discussion).
         "routingPreference": "TRAFFIC_AWARE",
+        # Without this, Google defaults navigationInstruction.instructions to
+        # English — harmless while only the polyline/duration were used, but
+        # would have shipped "Turn right onto Main Street" into an
+        # all-Spanish, voseo app the moment per-step instructions started
+        # being requested. es-419 = Latin American Spanish; matches the
+        # app's own voseo (vos, not tú) better than plain "es" (which leans
+        # Spain-Spanish conventions).
+        "languageCode": "es-419",
     }
     if departure_time is not None:
         body["departureTime"] = departure_time.isoformat()
+
+    field_mask = "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline"
+    if include_steps:
+        # Per-step turn-by-turn data for the live in-app navigation view —
+        # same Pro-tier billing as the fields above, Google only ever sends
+        # what's explicitly asked for here, regardless of what the caller
+        # does with the response afterwards. Each step's own polyline is
+        # requested too (unused for now) since it's the same field-mask
+        # cost either way and useful later, e.g. to highlight just the
+        # current step's stretch of road.
+        field_mask += (
+            ",routes.legs.steps.navigationInstruction"
+            ",routes.legs.steps.distanceMeters"
+            ",routes.legs.steps.polyline.encodedPolyline"
+        )
 
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": settings.GOOGLE_ROUTES_API_KEY,
         # Required by the API — there's no default field list, omitting
         # this causes an error, not just a bigger response.
-        "X-Goog-FieldMask": "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline",
+        "X-Goog-FieldMask": field_mask,
     }
 
     try:
@@ -82,8 +124,27 @@ def compute_route(
     except (KeyError, ValueError) as e:
         raise RoutingError(f"Unexpected Routes API response shape: {e}") from e
 
+    steps: List[RouteStep] = []
+    if include_steps:
+        # Always a single leg — this app never sends intermediate waypoints
+        # to Google (stops are tracked separately, via proximity detection
+        # against recorded GPS points, not as routing waypoints), so
+        # legs[0] already covers the whole origin-to-destination route.
+        for leg in route.get("legs", []):
+            for step in leg.get("steps", []):
+                nav = step.get("navigationInstruction", {})
+                steps.append(
+                    RouteStep(
+                        maneuver=nav.get("maneuver", "STRAIGHT"),
+                        instructions=nav.get("instructions", ""),
+                        distance_meters=step.get("distanceMeters", 0),
+                        encoded_polyline=step.get("polyline", {}).get("encodedPolyline", ""),
+                    )
+                )
+
     return RouteResult(
         duration_seconds=duration_seconds,
         distance_meters=distance_meters,
         encoded_polyline=encoded_polyline,
+        steps=steps,
     )
