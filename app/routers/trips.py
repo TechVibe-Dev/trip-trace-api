@@ -155,7 +155,7 @@ def recalculate_trip_eta(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
     the trip actually is right now". Callers (the Android app, polling
     every ~30s while a trip is active) hold onto this client-side instead.
 
-    Also requests turn-by-turn steps (android#110, live navigation view) —
+    Also requests turn-by-turn steps, for the live in-app navigation view —
     since this route is computed FROM the trip's current position, steps[0]
     is always "the next maneuver from here": no separate step-matching is
     needed on the client, the freshest poll already carries it.
@@ -336,9 +336,9 @@ def create_gps_points(
         db.refresh(point)
 
     # Side effect: check whether any of the points just uploaded brought the
-    # trip within range of a stop that hasn't been reached yet (android#7 /
-    # api#7 — live stop progress). Points are already in submission order
-    # (== recorded_at ascending, same as the request body), matching what
+    # trip within range of a stop that hasn't been reached yet (live stop
+    # progress). Points are already in submission order (== recorded_at
+    # ascending, same as the request body), matching what
     # find_newly_reached_stops expects.
     unreached_stops = (
         db.query(Stop)
