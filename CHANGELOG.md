@@ -7,6 +7,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.10.0] - 29 Sep 2026
+
 ### Added
 
 - `POST /trips/{id}/recalculate-eta` now also returns turn-by-turn steps (maneuver, instructions, distance) — same Google Routes call already made every 30s, no new cost. `steps[0]` is always "the next maneuver from here", since the route is computed from the trip's current position. Also now requests Spanish (`es-419`) instructions, which Google didn't default to. For `android#110`'s live navigation view. ([#70](https://github.com/TechVibe-Dev/trip-trace-api/pull/70))
