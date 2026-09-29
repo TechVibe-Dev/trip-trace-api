@@ -58,6 +58,14 @@ def compute_route(
         # Uses live/predicted traffic conditions — this is the whole point of
         # picking Google Routes over a free option like OSRM (see PR discussion).
         "routingPreference": "TRAFFIC_AWARE",
+        # Without this, Google defaults navigationInstruction.instructions to
+        # English — harmless while only the polyline/duration were used, but
+        # would have shipped "Turn right onto Main Street" into an
+        # all-Spanish, voseo app the moment steps started being requested
+        # (android#110). es-419 = Latin American Spanish; matches the app's
+        # own voseo (vos, not tú) better than plain "es" (which leans
+        # Spain-Spanish conventions).
+        "languageCode": "es-419",
     }
     if departure_time is not None:
         body["departureTime"] = departure_time.isoformat()
