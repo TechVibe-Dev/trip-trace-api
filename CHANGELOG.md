@@ -9,7 +9,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- `POST /trips/{id}/recalculate-eta` stops calling Google Routes once a trip has been running for more than 24 hours (counted from `started_at`, or from its first GPS point if that's unset), and returns an empty route instead: `calculated_arrival_at: null`, `route_polyline: ""`, `steps: []`. Guards against a trip that never gets finalized (dead battery, app killed, forgotten "Finalizar"): the app's 30s poll alone would exhaust the Routes free tier in under two days. The app keeps recording and showing live position; it just stops getting a suggested route and turn card, and the arrival time falls back to the original plan. `calculated_arrival_at` is now nullable in the response schema. Part of `api#76`.
+- `POST /trips/{id}/recalculate-eta` stops calling Google Routes once a trip has been running for more than 10 hours (counted from `started_at`, or from its first GPS point if that's unset), and returns an empty route instead: `calculated_arrival_at: null`, `route_polyline: ""`, `steps: []`. Guards against a trip that never gets finalized (dead battery, app killed, forgotten "Finalizar"): the app's 30s poll alone would exhaust the Routes free tier in under two days. The app keeps recording and showing live position; it just stops getting a suggested route and turn card, and the arrival time falls back to the original plan. `calculated_arrival_at` is now nullable in the response schema. Part of `api#76`.
 
 ## [0.10.0] - 29 Sep 2026
 
