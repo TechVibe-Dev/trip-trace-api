@@ -50,7 +50,7 @@ DEPARTURE_TIME_BUFFER = timedelta(minutes=1)
 # the app polls every ~30s, which alone would burn through the Routes free
 # tier in under two days. Generous enough for any real trip; the app keeps
 # recording and showing live position, it just stops getting a route.
-MAX_LIVE_ROUTING_DURATION = timedelta(hours=10)
+MAX_LIVE_ROUTING_DURATION = timedelta(hours=8)
 
 
 def _get_owned_trip(db: Session, trip_id: str, user_id: str) -> Trip:
