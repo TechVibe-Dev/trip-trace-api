@@ -39,6 +39,14 @@ CurrentUserDep = Annotated[User, Depends(get_current_user)]
 # accurate the instant we read it. This buffer absorbs that gap.
 DEPARTURE_TIME_BUFFER = timedelta(minutes=1)
 
+# Past this much time since a trip started, recalculate-eta stops calling
+# Google Routes and returns an empty route instead. Guards against a "ghost"
+# trip that never gets finalized (dead battery, app killed, user forgets):
+# the app polls every ~30s, which alone would burn through the Routes free
+# tier in under two days. Generous enough for any real trip; the app keeps
+# recording and showing live position, it just stops getting a route.
+MAX_LIVE_ROUTING_DURATION = timedelta(hours=24)
+
 
 def _get_owned_trip(db: Session, trip_id: str, user_id: str) -> Trip:
     trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == user_id).first()
@@ -144,6 +152,25 @@ def calculate_trip_route(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
     return trip
 
 
+def _live_routing_expired(db: Session, trip: Trip) -> bool:
+    started_at = trip.started_at
+    if started_at is None:
+        # Clients are expected to set started_at, but don't let a trip that
+        # lacks it bypass the cap: fall back to its first recorded point.
+        started_at = (
+            db.query(GpsPoint.recorded_at)
+            .filter(GpsPoint.trip_id == trip.id)
+            .order_by(GpsPoint.recorded_at.asc())
+            .limit(1)
+            .scalar()
+        )
+    if started_at is None:
+        return False
+    if started_at.tzinfo is None:
+        started_at = started_at.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - started_at > MAX_LIVE_ROUTING_DURATION
+
+
 @router.post("/{trip_id}/recalculate-eta", response_model=EtaRecalculation)
 def recalculate_trip_eta(trip_id: str, db: DbDep, current_user: CurrentUserDep) -> EtaRecalculation:
     """Live ETA for a trip already in progress: same Google Routes call as
@@ -173,6 +200,12 @@ def recalculate_trip_eta(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No GPS points recorded yet for this trip",
         )
+
+    if _live_routing_expired(db, trip):
+        # Same shape the app already handles before its first poll returns:
+        # no suggested route line, no turn card, and the arrival time falls
+        # back to the trip's original plan.
+        return EtaRecalculation(calculated_arrival_at=None, route_polyline="", steps=[])
 
     departure_time = _future_departure_time(None)
 

@@ -145,7 +145,10 @@ class EtaRecalculation(BaseModel):
     # routers/trips.py) — calculated_arrival_at keeps meaning "the original
     # plan", this is a live snapshot computed from wherever the trip is
     # right now.
-    calculated_arrival_at: datetime
+    # Null (with an empty route_polyline and steps) once the trip has been
+    # running longer than the live-routing cap, see MAX_LIVE_ROUTING_DURATION
+    # in routers/trips.py.
+    calculated_arrival_at: Optional[datetime]
     route_polyline: str
     # steps[0] is always "the next maneuver from here" — this route was
     # just computed FROM the trip's current position, so there's no
