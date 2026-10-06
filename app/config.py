@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import List
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -14,6 +15,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 259200
     CORS_ORIGINS: str = "http://localhost:5173,http://localhost:3000"
     GOOGLE_ROUTES_API_KEY: str = ""
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def pin_postgres_driver(cls, url: str) -> str:
+        # SQLAlchemy 2.1 maps a bare postgresql:// URL to psycopg (v3), but
+        # only psycopg2 is installed, so pin the driver explicitly.
+        for prefix in ("postgresql://", "postgres://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg2://" + url[len(prefix):]
+        return url
 
     @property
     def cors_origins_list(self) -> List[str]:

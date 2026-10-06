@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Bumped SQLAlchemy from 2.0.53 to 2.1.3. SQLAlchemy 2.1 maps a bare `postgresql://` URL to the `psycopg` (v3) driver instead of `psycopg2`, which made the app fail to start; `DATABASE_URL` is now normalized to `postgresql+psycopg2://` when it has no explicit driver, so existing env vars keep working. ([#81](https://github.com/TechVibe-Dev/trip-trace-api/pull/81))
+
 ## [0.11.0] - 30 Sep 2026
 
 ### Changed
