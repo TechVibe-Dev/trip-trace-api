@@ -7,10 +7,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..database import Base
 
 
-# A user's own named way of driving between two places, e.g. "Por Rambla y
-# Ruta 101" from home to San Jacinto. Picking one for a trip copies its via
-# points onto the trip, so editing or deleting the saved route later never
-# rewrites the history of trips already made with it.
 class SavedRoute(Base):
     __tablename__ = "saved_routes"
 

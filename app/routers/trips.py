@@ -89,7 +89,7 @@ def create_trip(trip_in: TripCreate, db: DbDep, current_user: CurrentUserDep) ->
     if trip_in.saved_route_id is not None:
         saved_route = _get_owned_saved_route(db, trip_in.saved_route_id, current_user.id)
         # Picking a saved route is enough: its points and name are copied
-        # onto the trip unless the client sent its own (e.g. adjusted ones).
+        # onto the trip unless the client sent its own.
         if not data["via_points"]:
             data["via_points"] = saved_route.via_points
         if not data["route_name"]:

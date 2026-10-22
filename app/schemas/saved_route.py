@@ -58,5 +58,5 @@ class RoutePreview(BaseModel):
     distance_meters: int
     calculated_arrival_at: datetime
     route_polyline: str
-    # Google's short label, e.g. "Ruta 8". Only filled for alternatives.
+    # Only filled for alternatives.
     description: str

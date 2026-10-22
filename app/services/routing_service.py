@@ -32,8 +32,6 @@ class RouteResult:
         # (the one-time call before a trip starts) has no use for turn-by-turn
         # data, only recalculate_trip_eta's live navigation view does.
         self.steps = steps or []
-        # Google's short label for the route, e.g. "Ruta 8". Only requested
-        # when asking for alternatives, where it tells them apart.
         self.description = description
 
 

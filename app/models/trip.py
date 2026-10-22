@@ -41,8 +41,8 @@ class Trip(Base):
 
     # User-chosen points the route must pass through, in order, as a list of
     # {"name", "lat", "lng"} dicts. Sent to Google as pass-through waypoints
-    # so the suggested route follows the road the user picked (e.g. "by the
-    # Rambla and Ruta 101") instead of whatever Google finds fastest. Not
+    # so the suggested route follows the roads the user picked instead of
+    # whatever Google finds fastest. Not
     # stops: the car is not expected to halt at them. Null or empty = let
     # Google choose.
     via_points: Mapped[list | None] = mapped_column(JSON, nullable=True)
