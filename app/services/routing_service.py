@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Sequence, Tuple
 
 import httpx
 
@@ -23,6 +23,7 @@ class RouteResult:
         distance_meters: int,
         encoded_polyline: str,
         steps: Optional[List[RouteStep]] = None,
+        description: str = "",
     ):
         self.duration_seconds = duration_seconds
         self.distance_meters = distance_meters
@@ -31,6 +32,9 @@ class RouteResult:
         # (the one-time call before a trip starts) has no use for turn-by-turn
         # data, only recalculate_trip_eta's live navigation view does.
         self.steps = steps or []
+        # Google's short label for the route, e.g. "Ruta 8". Only requested
+        # when asking for alternatives, where it tells them apart.
+        self.description = description
 
 
 class RoutingError(Exception):
@@ -44,7 +48,35 @@ def compute_route(
     destination_lng: float,
     departure_time: Optional[datetime] = None,
     include_steps: bool = False,
+    via_points: Sequence[Tuple[float, float]] = (),
 ) -> RouteResult:
+    """Google's preferred route (the first one it returns)."""
+    return compute_routes(
+        origin_lat,
+        origin_lng,
+        destination_lat,
+        destination_lng,
+        departure_time=departure_time,
+        include_steps=include_steps,
+        via_points=via_points,
+    )[0]
+
+
+def compute_routes(
+    origin_lat: float,
+    origin_lng: float,
+    destination_lat: float,
+    destination_lng: float,
+    departure_time: Optional[datetime] = None,
+    include_steps: bool = False,
+    via_points: Sequence[Tuple[float, float]] = (),
+    alternatives: bool = False,
+) -> List[RouteResult]:
+    """Every route Google returns, preferred one first. With
+    alternatives=True Google may add up to 3 more, or none; it rejects
+    alternatives combined with intermediates, so via_points wins and
+    alternatives is ignored when both are given.
+    """
     settings = get_settings()
     if not settings.GOOGLE_ROUTES_API_KEY:
         raise RoutingError("GOOGLE_ROUTES_API_KEY is not set")
@@ -69,8 +101,20 @@ def compute_route(
     }
     if departure_time is not None:
         body["departureTime"] = departure_time.isoformat()
+    if via_points:
+        # "via": True makes each one a pass-through point: the route goes
+        # through it without stopping there, and Google keeps returning a
+        # single leg instead of splitting the route at every point.
+        body["intermediates"] = [
+            {"location": {"latLng": {"latitude": lat, "longitude": lng}}, "via": True}
+            for lat, lng in via_points
+        ]
+    elif alternatives:
+        body["computeAlternativeRoutes"] = True
 
     field_mask = "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline"
+    if body.get("computeAlternativeRoutes"):
+        field_mask += ",routes.description"
     if include_steps:
         # Per-step turn-by-turn data for the live in-app navigation view —
         # same Pro-tier billing as the fields above, Google only ever sends
@@ -115,7 +159,10 @@ def compute_route(
     if not routes:
         raise RoutingError("Routes API returned no routes")
 
-    route = routes[0]
+    return [_parse_route(route, include_steps) for route in routes]
+
+
+def _parse_route(route: dict, include_steps: bool) -> RouteResult:
     try:
         # duration comes back as a string like "1234s" (seconds, Duration proto)
         duration_seconds = int(route["duration"].rstrip("s"))
@@ -126,10 +173,11 @@ def compute_route(
 
     steps: List[RouteStep] = []
     if include_steps:
-        # Always a single leg — this app never sends intermediate waypoints
-        # to Google (stops are tracked separately, via proximity detection
-        # against recorded GPS points, not as routing waypoints), so
-        # legs[0] already covers the whole origin-to-destination route.
+        # Always a single leg: the only intermediates ever sent are via
+        # points, which don't split the route (stops are tracked separately,
+        # via proximity detection against recorded GPS points, not as
+        # routing waypoints). Looping over legs anyway keeps this correct if
+        # that ever changes.
         for leg in route.get("legs", []):
             for step in leg.get("steps", []):
                 nav = step.get("navigationInstruction", {})
@@ -147,4 +195,5 @@ def compute_route(
         distance_meters=distance_meters,
         encoded_polyline=encoded_polyline,
         steps=steps,
+        description=route.get("description", ""),
     )
