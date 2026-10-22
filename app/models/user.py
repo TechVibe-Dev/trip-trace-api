@@ -44,3 +44,8 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    saved_routes: Mapped[list["SavedRoute"]] = relationship(
+        "SavedRoute",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
