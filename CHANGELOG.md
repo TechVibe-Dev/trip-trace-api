@@ -11,6 +11,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Bumped SQLAlchemy from 2.0.53 to 2.1.3. SQLAlchemy 2.1 maps a bare `postgresql://` URL to the `psycopg` (v3) driver instead of `psycopg2`, which made the app fail to start; `DATABASE_URL` is now normalized to `postgresql+psycopg2://` when it has no explicit driver, so existing env vars keep working. ([#81](https://github.com/TechVibe-Dev/trip-trace-api/pull/81))
 
+- Bumped FastAPI from 0.141.1 to 0.162.0, Pydantic from 2.13.5 to 2.14.2 (includes two security fixes), pydantic-settings from 2.15.0 to 2.16.2, SQLAlchemy from 2.1.3 to 2.1.6 and Alembic from 1.20.0 to 1.20.1. No code changes needed: every endpoint returns the same responses and the OpenAPI schema is unchanged. Supersedes dependabot #83 to #87. ([#PR](https://github.com/TechVibe-Dev/trip-trace-api/pull/PR))
+
 ## [0.11.0] - 30 Sep 2026
 
 ### Changed
