@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..dependencies import get_current_user
 from ..models.gps_point import GpsPoint
+from ..models.saved_route import SavedRoute
 from ..models.stop import Stop
 from ..models.trip import Trip
 from ..models.user import User
@@ -52,6 +53,12 @@ DEPARTURE_TIME_BUFFER = timedelta(minutes=1)
 # recording and showing live position, it just stops getting a route.
 MAX_LIVE_ROUTING_DURATION = timedelta(hours=8)
 
+# How close a recorded GPS point needs to come to a via point for it to count
+# as passed. Wider than STOP_PROXIMITY_METERS: a via point is dropped on a
+# map, not at the exact lane the car drives, and at highway speed two GPS
+# fixes (about 2s apart) can be 60m away from each other.
+VIA_POINT_PROXIMITY_METERS = 150.0
+
 
 def _get_owned_trip(db: Session, trip_id: str, user_id: str) -> Trip:
     trip = db.query(Trip).filter(Trip.id == trip_id, Trip.user_id == user_id).first()
@@ -63,9 +70,31 @@ def _get_owned_trip(db: Session, trip_id: str, user_id: str) -> Trip:
 # --- Trips ---
 
 
+def _get_owned_saved_route(db: Session, saved_route_id: str, user_id: str) -> SavedRoute:
+    saved_route = (
+        db.query(SavedRoute)
+        .filter(SavedRoute.id == saved_route_id, SavedRoute.user_id == user_id)
+        .first()
+    )
+    if saved_route is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Saved route not found"
+        )
+    return saved_route
+
+
 @router.post("", response_model=TripRead, status_code=status.HTTP_201_CREATED)
 def create_trip(trip_in: TripCreate, db: DbDep, current_user: CurrentUserDep) -> Trip:
-    trip = Trip(user_id=current_user.id, **trip_in.model_dump())
+    data = trip_in.model_dump()
+    if trip_in.saved_route_id is not None:
+        saved_route = _get_owned_saved_route(db, trip_in.saved_route_id, current_user.id)
+        # Picking a saved route is enough: its points and name are copied
+        # onto the trip unless the client sent its own.
+        if not data["via_points"]:
+            data["via_points"] = saved_route.via_points
+        if not data["route_name"]:
+            data["route_name"] = saved_route.name
+    trip = Trip(user_id=current_user.id, **data)
     db.add(trip)
     db.commit()
     db.refresh(trip)
@@ -97,6 +126,8 @@ def update_trip(
     current_user: CurrentUserDep,
 ) -> Trip:
     trip = _get_owned_trip(db, trip_id, current_user.id)
+    if trip_in.saved_route_id is not None:
+        _get_owned_saved_route(db, trip_in.saved_route_id, current_user.id)
     for field, value in trip_in.model_dump(exclude_unset=True).items():
         setattr(trip, field, value)
     db.add(trip)
@@ -142,6 +173,7 @@ def calculate_trip_route(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
             destination_lat=trip.destination_lat,
             destination_lng=trip.destination_lng,
             departure_time=departure_time,
+            via_points=[(p["lat"], p["lng"]) for p in trip.via_points or []],
         )
     except RoutingError as e:
         raise HTTPException(
@@ -176,31 +208,52 @@ def _live_routing_expired(db: Session, trip: Trip) -> bool:
     return datetime.now(timezone.utc) - started_at > MAX_LIVE_ROUTING_DURATION
 
 
-def _has_reached_destination(db: Session, trip: Trip) -> bool:
+def _has_passed_near(db: Session, trip_id: str, lat: float, lng: float, radius_meters: float) -> bool:
     """True once any recorded point of the trip has come within
-    STOP_PROXIMITY_METERS of its destination (the same radius the app uses
-    for its "you've arrived" prompt). Sticky on purpose: after arriving, a
-    route back to the same destination is useless, even if the user chose
-    to keep the trip going and drove off.
+    radius_meters of (lat, lng).
     """
     # Cheap SQL bounding-box prefilter, then an exact haversine check on the
     # few candidates, instead of scanning every point of the trip in Python.
-    lat_margin = STOP_PROXIMITY_METERS / 111_000
-    lng_margin = lat_margin / max(math.cos(math.radians(trip.destination_lat)), 0.01)
+    lat_margin = radius_meters / 111_000
+    lng_margin = lat_margin / max(math.cos(math.radians(lat)), 0.01)
     candidates = (
         db.query(GpsPoint.lat, GpsPoint.lng)
         .filter(
-            GpsPoint.trip_id == trip.id,
-            GpsPoint.lat.between(trip.destination_lat - lat_margin, trip.destination_lat + lat_margin),
-            GpsPoint.lng.between(trip.destination_lng - lng_margin, trip.destination_lng + lng_margin),
+            GpsPoint.trip_id == trip_id,
+            GpsPoint.lat.between(lat - lat_margin, lat + lat_margin),
+            GpsPoint.lng.between(lng - lng_margin, lng + lng_margin),
         )
         .all()
     )
     return any(
-        haversine_distance_km(lat, lng, trip.destination_lat, trip.destination_lng) * 1000
-        <= STOP_PROXIMITY_METERS
-        for lat, lng in candidates
+        haversine_distance_km(p_lat, p_lng, lat, lng) * 1000 <= radius_meters
+        for p_lat, p_lng in candidates
     )
+
+
+def _has_reached_destination(db: Session, trip: Trip) -> bool:
+    """True once the trip has come within STOP_PROXIMITY_METERS of its
+    destination (the same radius the app uses for its "you've arrived"
+    prompt). Sticky on purpose: after arriving, a route back to the same
+    destination is useless, even if the user chose to keep the trip going
+    and drove off.
+    """
+    return _has_passed_near(
+        db, trip.id, trip.destination_lat, trip.destination_lng, STOP_PROXIMITY_METERS
+    )
+
+
+def _remaining_via_points(db: Session, trip: Trip) -> list[tuple[float, float]]:
+    """The trip's via points still ahead: everything after the last one the
+    car has already passed. Passing a later point also drops any earlier one
+    that was skipped, so the route never sends the car back for it.
+    """
+    via_points = [(p["lat"], p["lng"]) for p in trip.via_points or []]
+    for index in range(len(via_points) - 1, -1, -1):
+        lat, lng = via_points[index]
+        if _has_passed_near(db, trip.id, lat, lng, VIA_POINT_PROXIMITY_METERS):
+            return via_points[index + 1 :]
+    return via_points
 
 
 @router.post("/{trip_id}/recalculate-eta", response_model=EtaRecalculation)
@@ -213,6 +266,11 @@ def recalculate_trip_eta(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
     keeps meaning "the original plan"; this is a snapshot of "given where
     the trip actually is right now". Callers (the Android app, polling
     every ~30s while a trip is active) hold onto this client-side instead.
+
+    Keeps following the trip's chosen route: the via points not passed yet
+    are sent along, so going off route steers back to the user's road
+    instead of switching to whatever Google finds fastest. Clearing
+    via_points (PATCH with []) is how the user lets go of that route.
 
     Also requests turn-by-turn steps, for the live in-app navigation view —
     since this route is computed FROM the trip's current position, steps[0]
@@ -249,6 +307,7 @@ def recalculate_trip_eta(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
             destination_lng=trip.destination_lng,
             departure_time=departure_time,
             include_steps=True,
+            via_points=_remaining_via_points(db, trip),
         )
     except RoutingError as e:
         raise HTTPException(

@@ -13,6 +13,16 @@ from ..models.trip import TripStatus
 LATITUDE = Field(ge=-90, le=90)
 LONGITUDE = Field(ge=-180, le=180)
 
+# Google bills computeRoutes with 11 or more intermediate waypoints at a
+# higher rate, so the cap stays at 10 to keep every call on today's tier.
+MAX_VIA_POINTS = 10
+
+
+class ViaPoint(BaseModel):
+    name: Optional[str] = None
+    lat: float = LATITUDE
+    lng: float = LONGITUDE
+
 
 class TripCreate(BaseModel):
     origin_name: str
@@ -22,6 +32,9 @@ class TripCreate(BaseModel):
     destination_lat: float = LATITUDE
     destination_lng: float = LONGITUDE
     planned_route_polyline: Optional[str] = None
+    via_points: Optional[List[ViaPoint]] = Field(default=None, max_length=MAX_VIA_POINTS)
+    route_name: Optional[str] = None
+    saved_route_id: Optional[str] = None
     planned_departure_at: Optional[datetime] = None
     desired_arrival_at: Optional[datetime] = None
     calculated_arrival_at: Optional[datetime] = None
@@ -29,6 +42,11 @@ class TripCreate(BaseModel):
 
 class TripUpdate(BaseModel):
     status: Optional[TripStatus] = None
+    # An empty list drops the chosen route: from the next calculate-route or
+    # recalculate-eta on, Google picks the fastest one again.
+    via_points: Optional[List[ViaPoint]] = Field(default=None, max_length=MAX_VIA_POINTS)
+    route_name: Optional[str] = None
+    saved_route_id: Optional[str] = None
     planned_departure_at: Optional[datetime] = None
     desired_arrival_at: Optional[datetime] = None
     calculated_arrival_at: Optional[datetime] = None
@@ -50,6 +68,9 @@ class TripRead(BaseModel):
     destination_lat: float
     destination_lng: float
     planned_route_polyline: Optional[str]
+    via_points: Optional[List[ViaPoint]]
+    route_name: Optional[str]
+    saved_route_id: Optional[str]
     status: TripStatus
     planned_departure_at: Optional[datetime]
     desired_arrival_at: Optional[datetime]

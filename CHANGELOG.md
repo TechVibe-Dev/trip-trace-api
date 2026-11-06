@@ -7,6 +7,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Custom routes per trip. Trips now take `via_points` (up to 10 ordered `{name, lat, lng}`), sent to Google Routes as pass-through waypoints (`via: true`) with the direction of travel as their heading, so Google puts each one on the lane going that way, and so the route follows the roads the user picked instead of Google's fastest. `recalculate-eta` keeps the chosen route during the trip: it only sends the via points still ahead (a point counts as passed once a GPS point comes within 150 m; passing a later one also drops any skipped earlier one), and `PATCH /trips/{id}` with `via_points: []` lets go of it. Capped at 10 because 11 or more are billed at a higher rate; up to 10 cost the same as today. Trips also store `route_name` and `saved_route_id`. Needs the new `trips` columns and `saved_routes` table created in the database before deploying (SQL in the PR). ([#82](https://github.com/TechVibe-Dev/trip-trace-api/pull/82))
+- Saved routes: `POST/GET/PATCH/DELETE /saved-routes`, a user's named routes between two places. `GET /saved-routes` with an origin and destination returns only those that start and end within 500 m of them. Creating a trip with `saved_route_id` copies its via points and name onto the trip, so later edits to the saved route don't rewrite past trips. ([#82](https://github.com/TechVibe-Dev/trip-trace-api/pull/82))
+- `POST /routes/preview`: routes for an origin, destination and optional via points before a trip exists, for drawing them on the Create trip map. With `alternatives: true` and no via points, Google may add up to 3 alternatives, each with a short `description`. Rate-limited to 20/minute, since each call is a billed Google request. ([#82](https://github.com/TechVibe-Dev/trip-trace-api/pull/82))
+
 ## [0.12.0] - 04 Nov 2026
 
 ### Changed
