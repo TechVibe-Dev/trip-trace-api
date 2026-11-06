@@ -1,3 +1,4 @@
+import math
 from datetime import datetime
 from typing import List, Optional, Sequence, Tuple
 
@@ -103,9 +104,19 @@ def compute_routes(
         # "via": True makes each one a pass-through point: the route goes
         # through it without stopping there, and Google keeps returning a
         # single leg instead of splitting the route at every point.
+        # The heading (from the point before to the point after) makes Google
+        # snap each point to the lane going our way. Without it, a point on a
+        # divided road can land on the opposite lane and force a U-turn loop.
+        path = [(origin_lat, origin_lng), *via_points, (destination_lat, destination_lng)]
         body["intermediates"] = [
-            {"location": {"latLng": {"latitude": lat, "longitude": lng}}, "via": True}
-            for lat, lng in via_points
+            {
+                "location": {
+                    "latLng": {"latitude": lat, "longitude": lng},
+                    "heading": _bearing_degrees(path[i], path[i + 2]),
+                },
+                "via": True,
+            }
+            for i, (lat, lng) in enumerate(via_points)
         ]
     elif alternatives:
         body["computeAlternativeRoutes"] = True
@@ -158,6 +169,16 @@ def compute_routes(
         raise RoutingError("Routes API returned no routes")
 
     return [_parse_route(route, include_steps) for route in routes]
+
+
+def _bearing_degrees(start: Tuple[float, float], end: Tuple[float, float]) -> int:
+    """Initial compass bearing from start to end, 0-359 (0 = north)."""
+    lat1, lng1 = map(math.radians, start)
+    lat2, lng2 = map(math.radians, end)
+    d_lng = lng2 - lng1
+    x = math.sin(d_lng) * math.cos(lat2)
+    y = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(d_lng)
+    return round(math.degrees(math.atan2(x, y))) % 360
 
 
 def _parse_route(route: dict, include_steps: bool) -> RouteResult:
