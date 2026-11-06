@@ -13,6 +13,7 @@ from ..models.stop import Stop, StopType
 from ..models.trip import Trip
 from ..models.user import User
 from ..schemas.trip import (
+    MAX_ROUTED_STOPS,
     EtaRecalculation,
     GpsPointCreate,
     GpsPointRead,
@@ -58,10 +59,6 @@ MAX_LIVE_ROUTING_DURATION = timedelta(hours=8)
 # map, not at the exact lane the car drives, and at highway speed two GPS
 # fixes (about 2s apart) can be 60m away from each other.
 VIA_POINT_PROXIMITY_METERS = 150.0
-
-# Google Routes takes at most 25 intermediates; via points already use up
-# to MAX_VIA_POINTS of them, so planned stops get the rest.
-MAX_ROUTED_STOPS = 15
 
 
 def _get_owned_trip(db: Session, trip_id: str, user_id: str) -> Trip:

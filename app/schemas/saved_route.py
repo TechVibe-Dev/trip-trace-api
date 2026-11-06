@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from .trip import LATITUDE, LONGITUDE, MAX_VIA_POINTS, ViaPoint
+from .trip import LATITUDE, LONGITUDE, MAX_ROUTED_STOPS, MAX_VIA_POINTS, ViaPoint
 
 
 class SavedRouteCreate(BaseModel):
@@ -47,9 +47,13 @@ class RoutePreviewRequest(BaseModel):
     destination_lat: float = LATITUDE
     destination_lng: float = LONGITUDE
     via_points: List[ViaPoint] = Field(default_factory=list, max_length=MAX_VIA_POINTS)
+    # The trip's planned stops, in order. Merged into the via points the
+    # same way calculate-route does, so the preview matches the real route.
+    stops: List[ViaPoint] = Field(default_factory=list, max_length=MAX_ROUTED_STOPS)
     planned_departure_at: Optional[datetime] = None
     # Ask Google for up to 3 more routes besides its preferred one. Ignored
-    # when via_points is not empty: Google doesn't support both at once.
+    # when via_points or stops is not empty: Google doesn't support both at
+    # once.
     alternatives: bool = False
 
 

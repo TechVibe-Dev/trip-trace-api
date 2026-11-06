@@ -15,7 +15,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
-- Planned stops are now part of the trip's route. `calculate-route` and `recalculate-eta` only sent the chosen route's via points to Google, so stops were saved but the route ignored them. Stops are merged into the via points in the user's order, each where it lengthens the path the least, and live rerouting leaves out the ones already reached. ([#91](https://github.com/TechVibe-Dev/trip-trace-api/pull/91))
+- Planned stops are now part of the trip's route. `calculate-route` and `recalculate-eta` only sent the chosen route's via points to Google, so stops were saved but the route ignored them. Stops are merged into the via points in the user's order, each where it lengthens the path the least, and live rerouting leaves out the ones already reached. `POST /routes/preview` takes the same stops in a new `stops` field, so the Create trip map shows the route the trip will really take. ([#91](https://github.com/TechVibe-Dev/trip-trace-api/pull/91))
 
 ## [0.12.0] - 04 Nov 2026
 
