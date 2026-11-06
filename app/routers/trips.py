@@ -9,10 +9,11 @@ from ..database import get_db
 from ..dependencies import get_current_user
 from ..models.gps_point import GpsPoint
 from ..models.saved_route import SavedRoute
-from ..models.stop import Stop
+from ..models.stop import Stop, StopType
 from ..models.trip import Trip
 from ..models.user import User
 from ..schemas.trip import (
+    MAX_ROUTED_STOPS,
     EtaRecalculation,
     GpsPointCreate,
     GpsPointRead,
@@ -173,7 +174,12 @@ def calculate_trip_route(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
             destination_lat=trip.destination_lat,
             destination_lng=trip.destination_lng,
             departure_time=departure_time,
-            via_points=[(p["lat"], p["lng"]) for p in trip.via_points or []],
+            via_points=_with_planned_stops(
+                (trip.origin_lat, trip.origin_lng),
+                (trip.destination_lat, trip.destination_lng),
+                [(p["lat"], p["lng"]) for p in trip.via_points or []],
+                _planned_stop_points(db, trip),
+            ),
         )
     except RoutingError as e:
         raise HTTPException(
@@ -256,6 +262,56 @@ def _remaining_via_points(db: Session, trip: Trip) -> list[tuple[float, float]]:
     return via_points
 
 
+def _planned_stop_points(db: Session, trip: Trip, remaining_only: bool = False) -> list[tuple[float, float]]:
+    """The trip's planned stops in the user's order. With remaining_only,
+    leaves out the ones already reached, so live rerouting doesn't send the
+    car back to them.
+    """
+    stops = (
+        db.query(Stop)
+        .filter(Stop.trip_id == trip.id, Stop.type == StopType.PLANNED)
+        .order_by(Stop.sequence.asc())
+        .all()
+    )
+    if remaining_only:
+        stops = [
+            stop
+            for stop in stops
+            if stop.actual_arrival_at is None
+            and not _has_passed_near(db, trip.id, stop.lat, stop.lng, STOP_PROXIMITY_METERS)
+        ]
+    return [(stop.lat, stop.lng) for stop in stops[:MAX_ROUTED_STOPS]]
+
+
+def _with_planned_stops(
+    origin: tuple[float, float],
+    destination: tuple[float, float],
+    via_points: list[tuple[float, float]],
+    stops: list[tuple[float, float]],
+) -> list[tuple[float, float]]:
+    """Merges planned stops into the via points, so the route goes through
+    both. Stops keep their order among themselves; each one goes where it
+    lengthens the straight-line path the least, after the previous stop.
+    """
+    points = list(via_points)
+    min_index = 0
+    for stop in stops:
+        path = [origin, *points, destination]
+        best_index = min(
+            range(min_index, len(points) + 1),
+            key=lambda i: _distance_km(path[i], stop)
+            + _distance_km(stop, path[i + 1])
+            - _distance_km(path[i], path[i + 1]),
+        )
+        points.insert(best_index, stop)
+        min_index = best_index + 1
+    return points
+
+
+def _distance_km(a: tuple[float, float], b: tuple[float, float]) -> float:
+    return haversine_distance_km(a[0], a[1], b[0], b[1])
+
+
 @router.post("/{trip_id}/recalculate-eta", response_model=EtaRecalculation)
 def recalculate_trip_eta(trip_id: str, db: DbDep, current_user: CurrentUserDep) -> EtaRecalculation:
     """Live ETA for a trip already in progress: same Google Routes call as
@@ -307,7 +363,12 @@ def recalculate_trip_eta(trip_id: str, db: DbDep, current_user: CurrentUserDep) 
             destination_lng=trip.destination_lng,
             departure_time=departure_time,
             include_steps=True,
-            via_points=_remaining_via_points(db, trip),
+            via_points=_with_planned_stops(
+                (latest_point.lat, latest_point.lng),
+                (trip.destination_lat, trip.destination_lng),
+                _remaining_via_points(db, trip),
+                _planned_stop_points(db, trip, remaining_only=True),
+            ),
         )
     except RoutingError as e:
         raise HTTPException(

@@ -16,6 +16,9 @@ LONGITUDE = Field(ge=-180, le=180)
 # Google bills computeRoutes with 11 or more intermediate waypoints at a
 # higher rate, so the cap stays at 10 to keep every call on today's tier.
 MAX_VIA_POINTS = 10
+# Google Routes takes at most 25 intermediates; via points already use up
+# to MAX_VIA_POINTS of them, so planned stops get the rest.
+MAX_ROUTED_STOPS = 15
 
 
 class ViaPoint(BaseModel):

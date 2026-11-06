@@ -8,7 +8,7 @@ from ..models.user import User
 from ..rate_limit import limiter
 from ..schemas.saved_route import RoutePreview, RoutePreviewRequest
 from ..services.routing_service import RoutingError, compute_routes
-from .trips import _future_departure_time
+from .trips import _future_departure_time, _with_planned_stops
 
 router = APIRouter(prefix="/api/v1/routes", tags=["routes"])
 
@@ -29,8 +29,8 @@ def preview_routes(
     Create trip screen can draw them on the map and let the user pick or
     adjust one. Nothing is persisted.
 
-    Returns Google's preferred route first. With via_points, that is the
-    only one: it follows the points. Without them and with
+    Returns Google's preferred route first. With via_points or stops, that
+    is the only one: it follows the points. Without them and with
     alternatives=true, up to 3 more may follow.
     """
     departure_time = _future_departure_time(preview_in.planned_departure_at)
@@ -42,7 +42,12 @@ def preview_routes(
             destination_lat=preview_in.destination_lat,
             destination_lng=preview_in.destination_lng,
             departure_time=departure_time,
-            via_points=[(p.lat, p.lng) for p in preview_in.via_points],
+            via_points=_with_planned_stops(
+                (preview_in.origin_lat, preview_in.origin_lng),
+                (preview_in.destination_lat, preview_in.destination_lng),
+                [(p.lat, p.lng) for p in preview_in.via_points],
+                [(p.lat, p.lng) for p in preview_in.stops],
+            ),
             alternatives=preview_in.alternatives,
         )
     except RoutingError as e:

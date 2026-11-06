@@ -192,11 +192,10 @@ def _parse_route(route: dict, include_steps: bool) -> RouteResult:
 
     steps: List[RouteStep] = []
     if include_steps:
-        # Always a single leg: the only intermediates ever sent are via
-        # points, which don't split the route (stops are tracked separately,
-        # via proximity detection against recorded GPS points, not as
-        # routing waypoints). Looping over legs anyway keeps this correct if
-        # that ever changes.
+        # Always a single leg: every intermediate (via points and planned
+        # stops alike) is sent as a pass-through point, which doesn't split
+        # the route. Looping over legs anyway keeps this correct if that
+        # ever changes.
         for leg in route.get("legs", []):
             for step in leg.get("steps", []):
                 nav = step.get("navigationInstruction", {})
