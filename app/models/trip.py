@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy import DateTime
 from sqlalchemy import Enum as SqlEnum
-from sqlalchemy import Float, ForeignKey, String, Text, func
+from sqlalchemy import JSON, Float, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..database import Base
@@ -38,6 +38,22 @@ class Trip(Base):
     # Raw geometry from a Directions-style API, kept as an encoded polyline
     # rather than expanded into rows — it's a reference line, not telemetry.
     planned_route_polyline: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # User-chosen points the route must pass through, in order, as a list of
+    # {"name", "lat", "lng"} dicts. Sent to Google as pass-through waypoints
+    # so the suggested route follows the roads the user picked instead of
+    # whatever Google finds fastest. Not
+    # stops: the car is not expected to halt at them. Null or empty = let
+    # Google choose.
+    via_points: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # Name of the chosen route, copied from the saved route it came from (or
+    # typed for a one-off), so it survives that saved route being renamed
+    # or deleted. Kept after the user lets go of the route mid-trip: it
+    # records what was planned.
+    route_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    saved_route_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("saved_routes.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     status: Mapped[TripStatus] = mapped_column(
         SqlEnum(TripStatus, name="trip_status"),

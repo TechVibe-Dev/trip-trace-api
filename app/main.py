@@ -6,7 +6,7 @@ from slowapi.errors import RateLimitExceeded
 
 from .config import get_settings
 from .rate_limit import limiter, rate_limit_exceeded_handler
-from .routers import auth, favorite_places, trips
+from .routers import auth, favorite_places, routes, saved_routes, trips
 
 
 settings = get_settings()
@@ -49,3 +49,5 @@ def health_check():
 app.include_router(auth.router)
 app.include_router(trips.router)
 app.include_router(favorite_places.router)
+app.include_router(saved_routes.router)
+app.include_router(routes.router)
